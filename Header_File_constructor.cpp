@@ -9,6 +9,10 @@
 #include <filesystem>
 #include <map>
 
+#if defined(_WIN32)
+	#include <Windows.h>
+#endif
+
 std::regex include_reg("^#[ \t]*include[ \t]+\"([^\"]+)\"[ \t]*");
 std::regex define_with_value_reg("^#[ \t]*define[ \t]+([a-zA-Z_][a-zA-Z0-9_]*)[ \t]+(.*)[ \t]*");
 std::regex define_reg("^#[ \t]*define[ \t]+([a-zA-Z_][a-zA-Z0-9_]*)[ \t]*");
@@ -109,7 +113,8 @@ void process_file(std::filesystem::path in_file, std::istream& in, std::ostream&
 			std::string content_after_include = line.substr(result.position() + result.length());
 			//content_after_include must be empty or end with "//"
 			if(content_after_include.empty() || content_after_include.find("//") == 0) {
-				std::ifstream include_file(file_path);
+				auto		  file_open_path = std::filesystem::absolute(file_path);
+				std::ifstream include_file(file_open_path);
 				if(include_file.is_open()) {
 					//if file_path's parent is root_path_for_skip, use NullStream
 					//not skip the processing of the contents of the file as it may have definitions.
@@ -210,7 +215,8 @@ void process_file(std::filesystem::path in_file, std::istream& in, std::ostream&
 }
 
 void process_file(std::string in_file_name, std::string out_file_name, std::filesystem::path root_path_for_skip) {
-	std::cout << "process file: " << in_file_name << std::endl;
+	if(!arg_info::using_std_out)
+		std::cout << "process file: " << in_file_name << std::endl;
 	std::ifstream		  in_file(in_file_name);
 	std::ofstream out_file;
 	std::ostream*		  out_stream = &out_file;
@@ -220,7 +226,7 @@ void process_file(std::string in_file_name, std::string out_file_name, std::file
 		out_file.open(out_file_name, std::ios_base::binary);
 	std::filesystem::path include_path = std::filesystem::path(in_file_name).parent_path();
 	if(in_file.is_open() && (arg_info::using_std_out || out_file.is_open())) {
-		process_file(in_file_name, in_file, out_file, "", include_path, root_path_for_skip);
+		process_file(in_file_name, in_file, *out_stream, "", include_path, root_path_for_skip);
 		in_file.close();
 		if(!arg_info::using_std_out)
 			out_file.close();
@@ -228,12 +234,14 @@ void process_file(std::string in_file_name, std::string out_file_name, std::file
 	else {
 		std::cerr << "can't open file" << std::endl;
 	}
-	for(auto& [key, value]: define_map) {
-		std::cout << "warning: define " << key << " is not undef" << std::endl;
+	if(!arg_info::using_std_out) {
+		for(auto& [key, value]: define_map) {
+			std::cout << "warning: define " << key << " is not undef" << std::endl;
+		}
+		std::cout << "process file: " << in_file_name << " done\n\n"
+				  << std::endl;
 	}
 	define_map.clear();
-	std::cout << "process file: " << in_file_name << " done\n\n"
-			  << std::endl;
 }
 
 
@@ -257,6 +265,12 @@ void print_help() {
 }
 
 int main(size_t argc, char* _argv[]) {
+	#if defined(_WIN32)
+		// Set console code page to UTF-8 so console known how to interpret string data
+		SetConsoleOutputCP(CP_UTF8);
+		// Enable buffering to prevent VS from chopping up UTF-8 byte sequences
+		setvbuf(stdout, nullptr, _IOFBF, 1000);
+	#endif
 	//build argv
 	std::vector<std::string> argv;
 	for(size_t i = 0; i < argc; i++) {
