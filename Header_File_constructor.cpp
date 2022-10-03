@@ -248,7 +248,8 @@ void print_help() {
 	std::cout << "    Relocate the input file path in \"#line\" to the specified path" << std::endl;
 	std::cout << "  -f, --format" << std::endl;
 	std::cout << "    Format the line beginning" << std::endl;
-	std::cout << "    This will result in a better looking output file, but the number of columns in the compilation warning will not match the source file." << std::endl;
+	std::cout << "    This will result in a better looking output file," << std::endl;
+	std::cout << "    but the number of columns in the compilation warning will not match the source file." << std::endl;
 	std::cout << "  -s, --std-out" << std::endl;
 	std::cout << "    Output to standard output" << std::endl;
 	std::cout << "if in_file is a directory, out_file must be a directory or not exist," << std::endl;

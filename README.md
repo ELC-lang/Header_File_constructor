@@ -15,7 +15,8 @@ Options:
     Relocate the input file path in "#line" to the specified path
   -f, --format
     Format the line beginning
-    This will result in a better looking output file, but the number of columns in the compilation warning will not match the source file.
+    This will result in a better looking output file,
+    but the number of columns in the compilation warning will not match the source file.
   -s, --std-out
     Output to standard output
 if in_file is a directory, out_file must be a directory or not exist,
