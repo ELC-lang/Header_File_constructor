@@ -315,12 +315,14 @@ int main(size_t argc, char* _argv[]) {
 	arg_info::out_path = std::filesystem::absolute(arg_info::out_path);
 	if(std::filesystem::is_regular_file(arg_info::in_path)) {
 		arg_info::is_full_mode = true;
-		std::filesystem::create_directories(arg_info::out_path.parent_path());
+		if(!arg_info::using_std_out)
+			std::filesystem::create_directories(arg_info::out_path.parent_path());
 		arg_info::in_path_dir = arg_info::in_path.parent_path();
 		process_file(arg_info::in_path.string(), arg_info::out_path.string(), arg_info::in_path_dir);
 	}
 	else if(std::filesystem::is_directory(arg_info::in_path)) {
-		std::filesystem::create_directories(arg_info::out_path);
+		if(!arg_info::using_std_out)
+			std::filesystem::create_directories(arg_info::out_path);
 		arg_info::in_path_dir = arg_info::in_path;
 		//process just superficial files
 		for(auto& p: std::filesystem::directory_iterator(arg_info::in_path)) {
