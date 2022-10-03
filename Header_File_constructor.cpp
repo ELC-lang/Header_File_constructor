@@ -55,6 +55,8 @@ namespace arg_info {
 	bool				  open_help	   = false;		  //-h or --help : Display help
 	std::string			  relocate_path;			  //-r or --relocate : Relocate the input file path in "#line" to the specified path
 	bool				  relocate_path_was_an_url = false;
+	bool				  format_line_beginning	   = false;		  //-f or --format : Format the line beginning
+	bool				  using_std_out			   = false;		  //-s or --std-out : Output to standard output
 }		// namespace arg_info
 
 //路径转义为合法的C++字符串
@@ -87,7 +89,9 @@ void process_file(std::filesystem::path in_file, std::istream& in, std::ostream&
 	while(std::getline(in, line)) {
 		line_num++;
 		//get line begin of this line
-		std::string line_begin_of_this_line = line_begin;
+		std::string line_begin_of_this_line;
+		if(arg_info::format_line_beginning)
+			line_begin_of_this_line = line_begin;
 		{
 			auto pos = line.find_first_not_of(" \t");
 			if(pos != std::string::npos) {
@@ -208,12 +212,18 @@ void process_file(std::filesystem::path in_file, std::istream& in, std::ostream&
 void process_file(std::string in_file_name, std::string out_file_name, std::filesystem::path root_path_for_skip) {
 	std::cout << "process file: " << in_file_name << std::endl;
 	std::ifstream		  in_file(in_file_name);
-	std::ofstream		  out_file(out_file_name, std::ios_base::binary);
+	std::ofstream out_file;
+	std::ostream*		  out_stream = &out_file;
+	if(arg_info::using_std_out)
+		out_stream = &std::cout;
+	else
+		out_file.open(out_file_name, std::ios_base::binary);
 	std::filesystem::path include_path = std::filesystem::path(in_file_name).parent_path();
-	if(in_file.is_open() && out_file.is_open()) {
+	if(in_file.is_open() && (arg_info::using_std_out || out_file.is_open())) {
 		process_file(in_file_name, in_file, out_file, "", include_path, root_path_for_skip);
 		in_file.close();
-		out_file.close();
+		if(!arg_info::using_std_out)
+			out_file.close();
 	}
 	else {
 		std::cerr << "can't open file" << std::endl;
@@ -236,6 +246,11 @@ void print_help() {
 	std::cout << "    Display help" << std::endl;
 	std::cout << "  -r, --relocate" << std::endl;
 	std::cout << "    Relocate the input file path in \"#line\" to the specified path" << std::endl;
+	std::cout << "  -f, --format" << std::endl;
+	std::cout << "    Format the line beginning" << std::endl;
+	std::cout << "    This will result in a better looking output file, but the number of columns in the compilation warning will not match the source file." << std::endl;
+	std::cout << "  -s, --std-out" << std::endl;
+	std::cout << "    Output to standard output" << std::endl;
 	std::cout << "if in_file is a directory, out_file must be a directory or not exist," << std::endl;
 	std::cout << "and all superficial files in in_file will be processed." << std::endl;
 }
@@ -254,6 +269,12 @@ int main(size_t argc, char* _argv[]) {
 		}
 		else if(arg == "-h" || arg == "--help") {
 			arg_info::open_help = true;
+		}
+		else if(arg == "-f" || arg == "--format") {
+			arg_info::format_line_beginning = true;
+		}
+		else if(arg == "-s" || arg == "--std-out") {
+			arg_info::using_std_out = true;
 		}
 		else if(arg == "-r" || arg == "--relocate") {
 			if(i + 1 < argv.size()) {
