@@ -177,7 +177,11 @@ void process_file(std::filesystem::path in_file, std::istream& in, std::ostream&
 			std::string content_after_ifndef = line.substr(result.position() + result.length());
 			//content_after_ifndef must be empty or end with "//"
 			if(content_after_ifndef.empty() || content_after_ifndef.find("//") == 0) {
-				if(define_map.find(define_name) != define_map.end()) {
+				//if "skip define check" in content_after_ifndef, skip define check
+				if(content_after_ifndef.find("skip define check") != std::string::npos) {
+					out << line_begin_of_this_line << line << std::endl;
+				}
+				else if(define_map.find(define_name) != define_map.end()) {
 					//skip this line and all lines until #endif
 					while(std::getline(in, line)) {
 						line_num++;
