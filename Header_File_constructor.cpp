@@ -22,6 +22,9 @@ std::regex ifndef_reg("^#[ \t]*ifndef[ \t]+([a-zA-Z_][a-zA-Z0-9_]*)[ \t]*");
 std::regex ifndef_reg2("^#[ \t]*if[ \t]+!defined[ \t]*\\([ \t]*([a-zA-Z_][a-zA-Z0-9_]*)[ \t]*\\)[ \t]*");
 std::regex endif_reg("^#[ \t]*endif[ \t]*");
 
+std::regex simple_block_comment_begin_reg("^[ \t]*/\\*[ \t]*$");
+std::regex simple_block_comment_end_reg("^[ \t]*\\*/[ \t]*$");
+
 std::map<std::string, std::string> define_map;
 
 class NullStream: public std::ostream {
@@ -106,25 +109,15 @@ void process_file(std::filesystem::path in_file, std::istream& in, std::ostream&
 		}
 		std::smatch result;
 		//skip_simple_block_comment
-		if(arg_info::skip_simple_block_comment && line == "/*") {
+		if(arg_info::skip_simple_block_comment && std::regex_match(line, result, simple_block_comment_begin_reg)) {
 			//skip this line and all lines until */
 		re_inblock:
 			while(std::getline(in, line)) {
 				line_num++;
-				if(line == "*/") {
+				if(std::regex_match(line, result, simple_block_comment_end_reg)) {
 					while(std::getline(in, line)) {
 						line_num++;
-						line_begin_of_this_line.clear();
-						if(arg_info::format_line_beginning)
-							line_begin_of_this_line = line_begin;
-						{
-							auto pos = line.find_first_not_of(" \t");
-							if(pos != std::string::npos) {
-								line_begin_of_this_line += line.substr(0, pos);
-								line = line.substr(pos);
-							}
-						}
-						if(line == "/*")
+						if(std::regex_match(line, result, simple_block_comment_begin_reg))
 							goto re_inblock;
 						else if(!line.empty())
 							break;
