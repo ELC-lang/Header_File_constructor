@@ -98,15 +98,19 @@ void process_file(std::filesystem::path in_file, std::istream& in, std::ostream&
 		line_num++;
 		//get line begin of this line
 		std::string line_begin_of_this_line;
-		if(arg_info::format_line_beginning)
-			line_begin_of_this_line = line_begin;
-		{
-			auto pos = line.find_first_not_of(" \t");
-			if(pos != std::string::npos) {
-				line_begin_of_this_line += line.substr(0, pos);
-				line = line.substr(pos);
-			}
-		}
+		auto		update_line_begin = [&]() {
+			   line_begin_of_this_line.clear();
+			   if(arg_info::format_line_beginning)
+				   line_begin_of_this_line = line_begin;
+			   {
+				   auto pos = line.find_first_not_of(" \t");
+				   if(pos != std::string::npos) {
+					   line_begin_of_this_line += line.substr(0, pos);
+					   line = line.substr(pos);
+				   }
+			   }
+		};
+		update_line_begin();
 		std::smatch result;
 		//skip_simple_block_comment
 		if(arg_info::skip_simple_block_comment && std::regex_match(line, result, simple_block_comment_begin_reg)) {
@@ -127,6 +131,8 @@ void process_file(std::filesystem::path in_file, std::istream& in, std::ostream&
 			}
 			//write #line
 			out << line_begin_of_this_line << "#line " << line_num << " \"" << path_to_string(in_file) << "\"" << std::endl;
+			//update line_begin_of_this_line
+			update_line_begin();
 		}
 		//match include
 		if(std::regex_search(line, result, include_reg)) {
