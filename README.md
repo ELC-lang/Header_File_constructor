@@ -5,7 +5,7 @@ Intelligent pre-processing of headers to generate single file headers without sy
 ## usage
 
 ```text
-Header_File_constructor [options] in_file out_file
+Usage: Header_File_constructor [options] in_file out_file
 Options:
   -f, --full
     Even under folder handling each file is guaranteed to be included individually without error
@@ -13,6 +13,8 @@ Options:
     Display help
   -r, --relocate
     Relocate the input file path in "#line" to the specified path
+  -b, --skip-simple-block-comment
+    Skip simple block comment
   -f, --format
     Format the line beginning
     This will result in a better looking output file,

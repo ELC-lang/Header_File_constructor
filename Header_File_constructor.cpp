@@ -55,12 +55,13 @@ namespace arg_info {
 	std::filesystem::path in_path;
 	std::filesystem::path in_path_dir;
 	std::filesystem::path out_path;
-	bool				  is_full_mode = false;		  //-f or --full : Even under folder handling each file is guaranteed to be included individually without error
-	bool				  open_help	   = false;		  //-h or --help : Display help
-	std::string			  relocate_path;			  //-r or --relocate : Relocate the input file path in "#line" to the specified path
-	bool				  relocate_path_was_an_url = false;
-	bool				  format_line_beginning	   = false;		  //-f or --format : Format the line beginning
-	bool				  using_std_out			   = false;		  //-s or --std-out : Output to standard output
+	bool				  is_full_mode = false;					   //-f or --full : Even under folder handling each file is guaranteed to be included individually without error
+	bool				  open_help	   = false;					   //-h or --help : Display help
+	std::string			  relocate_path;						   //-r or --relocate : Relocate the input file path in "#line" to the specified path
+	bool				  skip_simple_block_comment = false;	   //-b or --skip-simple-block-comment : Skip simple block comment
+	bool				  relocate_path_was_an_url	= false;
+	bool				  format_line_beginning		= false;	   //-f or --format : Format the line beginning
+	bool				  using_std_out				= false;	   //-s or --std-out : Output to standard output
 }		// namespace arg_info
 
 //路径转义为合法的C++字符串
@@ -104,6 +105,36 @@ void process_file(std::filesystem::path in_file, std::istream& in, std::ostream&
 			}
 		}
 		std::smatch result;
+		//skip_simple_block_comment
+		if(arg_info::skip_simple_block_comment && line == "/*") {
+			//skip this line and all lines until */
+		re_inblock:
+			while(std::getline(in, line)) {
+				line_num++;
+				if(line == "*/") {
+					while(std::getline(in, line)) {
+						line_num++;
+						line_begin_of_this_line.clear();
+						if(arg_info::format_line_beginning)
+							line_begin_of_this_line = line_begin;
+						{
+							auto pos = line.find_first_not_of(" \t");
+							if(pos != std::string::npos) {
+								line_begin_of_this_line += line.substr(0, pos);
+								line = line.substr(pos);
+							}
+						}
+						if(line == "/*")
+							goto re_inblock;
+						else if(!line.empty())
+							break;
+					}
+					break;
+				}
+			}
+			//write #line
+			out << line_begin_of_this_line << "#line " << line_num << " \"" << path_to_string(in_file) << "\"" << std::endl;
+		}
 		//match include
 		if(std::regex_search(line, result, include_reg)) {
 			std::string			  file_name		 = result[1];
@@ -221,9 +252,9 @@ void process_file(std::filesystem::path in_file, std::istream& in, std::ostream&
 void process_file(std::string in_file_name, std::string out_file_name, std::filesystem::path root_path_for_skip) {
 	if(!arg_info::using_std_out)
 		std::cout << "process file: " << in_file_name << std::endl;
-	std::ifstream		  in_file(in_file_name);
+	std::ifstream in_file(in_file_name);
 	std::ofstream out_file;
-	std::ostream*		  out_stream = &out_file;
+	std::ostream* out_stream = &out_file;
 	if(arg_info::using_std_out)
 		out_stream = &std::cout;
 	else
@@ -258,6 +289,8 @@ void print_help() {
 	std::cout << "    Display help" << std::endl;
 	std::cout << "  -r, --relocate" << std::endl;
 	std::cout << "    Relocate the input file path in \"#line\" to the specified path" << std::endl;
+	std::cout << "  -b, --skip-simple-block-comment" << std::endl;
+	std::cout << "    Skip simple block comment" << std::endl;
 	std::cout << "  -f, --format" << std::endl;
 	std::cout << "    Format the line beginning" << std::endl;
 	std::cout << "    This will result in a better looking output file," << std::endl;
@@ -269,12 +302,12 @@ void print_help() {
 }
 
 int main(size_t argc, char* _argv[]) {
-	#if defined(_WIN32)
-		// Set console code page to UTF-8 so console known how to interpret string data
-		SetConsoleOutputCP(CP_UTF8);
-		// Enable buffering to prevent VS from chopping up UTF-8 byte sequences
-		setvbuf(stdout, nullptr, _IOFBF, 1000);
-	#endif
+#if defined(_WIN32)
+	// Set console code page to UTF-8 so console known how to interpret string data
+	SetConsoleOutputCP(CP_UTF8);
+	// Enable buffering to prevent VS from chopping up UTF-8 byte sequences
+	setvbuf(stdout, nullptr, _IOFBF, 1000);
+#endif
 	//build argv
 	std::vector<std::string> argv;
 	for(size_t i = 0; i < argc; i++) {
@@ -310,6 +343,9 @@ int main(size_t argc, char* _argv[]) {
 				std::cerr << "error: -r or --relocate must be followed by a path" << std::endl;
 				return 1;
 			}
+		}
+		else if(arg == "-b" || arg == "--skip-simple-block-comment") {
+			arg_info::skip_simple_block_comment = true;
 		}
 		else {
 			if(arg_info::in_path.empty()) {
